@@ -1,17 +1,17 @@
 using System;
-using System.IO;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using Azure.Functions.Cli.Common;
 using Azure.Functions.Cli.Tests.E2E.Helpers;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
-using System.Net.Sockets;
-using System.Net;
-using System.Diagnostics;
-using Azure.Functions.Cli.Common;
 
 namespace Azure.Functions.Cli.Tests.E2E
 {
@@ -351,6 +351,76 @@ namespace Azure.Functions.Cli.Tests.E2E
         }
 
         [Fact]
+        [Trait(TestTraits.Group, TestTraits.UseInVisualStudioConsolidatedArtifactGeneration)]
+        public async Task Start_InProc_Net8_VisualStudio_SuccessfulFunctionExecution()
+        {
+            await CliTester.Run(new RunConfiguration[]
+            {
+                new RunConfiguration
+                {
+                    Commands = new[]
+                    {
+                        $"start --port {_funcHostPort} --verbose"
+                    },
+                    ExpectExit = false,
+                    Test = async (workingDir, p, _) =>
+                    {
+                        using (var client = new HttpClient() { BaseAddress = new Uri($"http://localhost:{_funcHostPort}") })
+                        {
+                            (await WaitUntilReady(client)).Should().BeTrue(because: _serverNotReady);
+                            var response = await client.GetAsync("/api/Function1?name=Test");
+                            var result = await response.Content.ReadAsStringAsync();
+                            p.Kill();
+                            result.Should().Be("Hello, Test. This HTTP triggered function executed successfully.", because: "response from default function should be 'Hello, {name}. This HTTP triggered function executed successfully.'");
+
+                            if (_output is Xunit.Sdk.TestOutputHelper testOutputHelper)
+                            {
+                                testOutputHelper.Output.Should().Contain("Loading .NET 8 host");
+                            }
+                        }
+                    },
+                    CommandTimeout = TimeSpan.FromSeconds(300),
+                }
+            }, _output, "../../../E2E/TestProject/TestNet8InProcProject");
+
+        }
+
+        [Fact]
+        [Trait(TestTraits.Group, TestTraits.UseInVisualStudioConsolidatedArtifactGeneration)]
+        public async Task Start_InProc_Net6_VisualStudio_SuccessfulFunctionExecution()
+        {
+            await CliTester.Run(new RunConfiguration[]
+            {
+                new RunConfiguration
+                {
+                    Commands = new[]
+                    {
+                        $"start --port {_funcHostPort} --verbose"
+                    },
+                    ExpectExit = false,
+                    Test = async (workingDir, p, _) =>
+                    {
+                        using (var client = new HttpClient() { BaseAddress = new Uri($"http://localhost:{_funcHostPort}") })
+                        {
+                            (await WaitUntilReady(client)).Should().BeTrue(because: _serverNotReady);
+                            var response = await client.GetAsync("/api/Function2?name=Test");
+                            var result = await response.Content.ReadAsStringAsync();
+                            p.Kill();
+                            result.Should().Be("Hello, Test. This HTTP triggered function executed successfully.", because: "response from default function should be 'Hello, {name}. This HTTP triggered function executed successfully.'");
+
+                            if (_output is Xunit.Sdk.TestOutputHelper testOutputHelper)
+                            {
+                                testOutputHelper.Output.Should().Contain("Loading .NET 6 host");
+                            }
+                        }
+                    },
+                    CommandTimeout = TimeSpan.FromSeconds(300),
+                }
+            }, _output, "../../../E2E/TestProject/TestNet6InProcProject");
+
+        }
+
+        [Fact]
         public async Task Start_DotnetIsolated_Net9_SuccessfulFunctionExecution()
         {
             await CliTester.Run(new RunConfiguration[]
@@ -663,6 +733,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                         $"start --port {_funcHostPort} --verbose --runtime inproc8"
                     },
                     ExpectExit = true,
+                    ExitInError = true,
                     ErrorContains = ["Failed to locate the inproc8 model host"],
                     Test = async (workingDir, p, _) =>
                     {
@@ -696,6 +767,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                         $"start --port {_funcHostPort} --verbose"
                     },
                     ExpectExit = true,
+                    ExitInError = true,
                     ErrorContains = ["Failed to locate the inproc8 model host"],
                     Test = async (workingDir, p, _) =>
                     {
@@ -815,6 +887,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                         $"start --port {_funcHostPort} --verbose"
                     },
                     ExpectExit = false,
+                    ExitInError = true,
                     ErrorContains = ["Failed to locate the inproc6 model host at"],
                     Test = async (workingDir, p, _) =>
                     {
@@ -848,6 +921,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                         $"start --port {_funcHostPort} --verbose --runtime inproc6"
                     },
                     ExpectExit = false,
+                    ExitInError = true,
                     ErrorContains = ["Failed to locate the inproc6 model host at"],
                     Test = async (workingDir, p, _) =>
                     {
@@ -902,7 +976,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                     },
                     Test = async (_, p, stdout) =>
                     {
-                        await LogWatcher.WaitForLogOutput(stdout, "Initializing function HTTP routes", TimeSpan.FromSeconds(5));
+                        await LogWatcher.WaitForLogOutput(stdout, "Worker process started and initialized", TimeSpan.FromSeconds(5));
                         p.Kill();
                     },
                     CommandTimeout = TimeSpan.FromSeconds(300)
@@ -929,7 +1003,8 @@ namespace Azure.Functions.Cli.Tests.E2E
                     {
                         $"start  --port {_funcHostPort} --verbose --runtime inproc6"
                     },
-                    ExpectExit = false,
+                    ExpectExit = true,
+                    ExitInError = true,
                     ErrorContains = ["The runtime argument value provided, 'inproc6', is invalid. The provided value is only valid for the worker runtime 'dotnet'."],
                     Test = async (workingDir, p, _) =>
                     {
@@ -963,6 +1038,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                         $"start  --port {_funcHostPort} --verbose --runtime inproc8"
                     },
                     ExpectExit = false,
+                    ExitInError = true,
                     ErrorContains = ["The runtime argument value provided, 'inproc8', is invalid. The provided value is only valid for the worker runtime 'dotnet'."],
                     Test = async (workingDir, p, _) =>
                     {
@@ -996,6 +1072,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                         $"start  --port {_funcHostPort} --verbose --runtime inproc8"
                     },
                     ExpectExit = false,
+                    ExitInError = true,
                     ErrorContains = ["The runtime argument value provided, 'inproc8', is invalid. For the 'inproc8' runtime, the 'FUNCTIONS_INPROC_NET8_ENABLED' environment variable must be set. See https://aka.ms/azure-functions/dotnet/net8-in-process."],
                     Test = async (workingDir, p, _) =>
                     {
@@ -1029,6 +1106,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                         $"start  --port {_funcHostPort} --verbose --runtime default"
                     },
                     ExpectExit = false,
+                    ExitInError = true,
                     ErrorContains = ["The runtime argument value provided, 'default', is invalid. The provided value is only valid for the worker runtime 'dotnetIsolated'."],
                     Test = async (workingDir, p, _) =>
                     {
@@ -1062,6 +1140,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                         $"start  --port {_funcHostPort} --verbose --runtime default"
                     },
                     ExpectExit = false,
+                    ExitInError = true,
                     ErrorContains = ["The runtime argument value provided, 'default', is invalid. The provided value is only valid for the worker runtime 'dotnetIsolated'."],
                     Test = async (workingDir, p, _) =>
                     {
@@ -1095,6 +1174,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                         $"start  --port {_funcHostPort} --verbose --runtime inproc6"
                     },
                     ExpectExit = false,
+                    ExitInError = true,
                     ErrorContains = ["The runtime argument value provided, 'inproc6', is invalid. For the 'inproc6' runtime, the 'FUNCTIONS_INPROC_NET8_ENABLED' environment variable cannot be be set. See https://aka.ms/azure-functions/dotnet/net8-in-process."],
                     Test = async (workingDir, p, _) =>
                     {
@@ -1129,6 +1209,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                         $"start  --port {_funcHostPort} --verbose --runtime inproc6"
                     },
                     ExpectExit = false,
+                    ExitInError = true,
                     ErrorContains = ["The runtime argument value provided, 'inproc6', is invalid. The provided value is only valid for the worker runtime 'dotnet'."],
                     Test = async (workingDir, p, _) =>
                     {
@@ -1163,6 +1244,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                         $"start  --port {_funcHostPort} --verbose --runtime inproc8"
                     },
                     ExpectExit = false,
+                    ExitInError = true,
                     ErrorContains = ["The runtime argument value provided, 'inproc8', is invalid. The provided value is only valid for the worker runtime 'dotnet'."],
                     Test = async (workingDir, p, _) =>
                     {
@@ -1431,7 +1513,6 @@ namespace Azure.Functions.Cli.Tests.E2E
                        $"start --port {_funcHostPort}"
                    },
                    ExpectExit = true,
-                   ExitInError = true,
                    OutputContains = new[] { "Extension bundle configuration should not be present" },
                },
             }, _output);
@@ -1466,7 +1547,6 @@ namespace Azure.Functions.Cli.Tests.E2E
                        $"start --port {_funcHostPort}"
                    },
                    ExpectExit = true,
-                   ExitInError = true,
                    OutputContains = new[] { "Host.json file in missing" },
                },
              }, _output);
@@ -1616,7 +1696,6 @@ namespace Azure.Functions.Cli.Tests.E2E
                     },
                     CommandTimeout = TimeSpan.FromSeconds(300),
                     ExpectExit = true,
-                    ExitInError = true,
                     OutputContains = new[]
                     {
                         "Missing value for AzureWebJobsStorage in local.settings.json. This is required for all triggers other than httptrigger, kafkatrigger, orchestrationTrigger, activityTrigger, entityTrigger",

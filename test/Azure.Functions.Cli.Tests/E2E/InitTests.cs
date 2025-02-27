@@ -45,7 +45,7 @@ namespace Azure.Functions.Cli.Tests.E2E
 
             return CliTester.Run(new RunConfiguration
             {
-                Commands = new[] { $"init . --worker-runtime {workerRuntime}" },
+                Commands = new[] { $"init . --worker-runtime {workerRuntime} --skip-npm-install" },
                 CheckFiles = files.ToArray(),
                 OutputContains = new[]
                 {
@@ -171,6 +171,7 @@ namespace Azure.Functions.Cli.Tests.E2E
             {
                 Commands = new[] { $"init . --worker-runtime {workerRuntime} --model {programmingModel}" },
                 HasStandardError = true,
+                ExitInError = true,
                 ErrorContains = new[]
                 {
                     $"programming model is not supported for worker runtime {workerRuntime}. Supported programming models for worker runtime {workerRuntime} are:"
@@ -278,6 +279,7 @@ namespace Azure.Functions.Cli.Tests.E2E
             {
                 Commands = new[] { $"init . --worker-runtime {unknownWorkerRuntime}" },
                 HasStandardError = true,
+                ExitInError = true,
                 ErrorContains = new[]
                 {
                     $"Worker runtime '{unknownWorkerRuntime}' is not a valid option."
@@ -293,6 +295,7 @@ namespace Azure.Functions.Cli.Tests.E2E
             {
                 Commands = new[] { $"init . --worker-runtime dotnet --target-framework {unsupportedTargetFramework}" },
                 HasStandardError = true,
+                ExitInError = true,
                 ErrorContains = new[]
                 {
                     $"Unable to parse target framework {unsupportedTargetFramework} for worker runtime dotnet. Valid options are net8.0, net6.0"
@@ -300,7 +303,7 @@ namespace Azure.Functions.Cli.Tests.E2E
             }, _output);
         }
 
-        [Fact(Skip="Flaky test")]
+        [Fact(Skip = "Flaky test")]
         public Task init_with_no_source_control()
         {
             return CliTester.Run(new RunConfiguration
@@ -540,7 +543,7 @@ namespace Azure.Functions.Cli.Tests.E2E
         {
             return CliTester.Run(new RunConfiguration
             {
-                Commands = new[] { "init . --worker-runtime node" },
+                Commands = new[] { "init . --worker-runtime node --skip-npm-install" },
                 CheckFiles = new FileResult[]
                 {
                     new FileResult
@@ -669,6 +672,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                     $"init . --docker-only"
                 },
                 HasStandardError = true,
+                ExitInError = true,
                 ErrorContains = new[]
                 {
                     $"Can't determine project language from files."
@@ -779,6 +783,7 @@ namespace Azure.Functions.Cli.Tests.E2E
                     $"init . --worker-runtime python --managed-dependencies "
                 },
                 HasStandardError = true,
+                ExitInError = true,
                 ErrorContains = new[]
                 {
                     $"Managed dependencies is only supported for PowerShell"
@@ -897,12 +902,12 @@ namespace Azure.Functions.Cli.Tests.E2E
         }
 
         [Theory]
-        [InlineData("dotnet-isolated","4", "net6.0")]
+        [InlineData("dotnet-isolated", "4", "net6.0")]
         [InlineData("dotnet-isolated", "4", "net7.0")]
-        [InlineData("dotnet-isolated","4", "net8.0")]
+        [InlineData("dotnet-isolated", "4", "net8.0")]
         public Task init_docker_only_for_existing_project_TargetFramework(string workerRuntime, string version, string TargetFramework)
         {
-           var TargetFrameworkstr = TargetFramework.Replace("net", string.Empty);
+            var TargetFrameworkstr = TargetFramework.Replace("net", string.Empty);
             return CliTester.Run(new RunConfiguration
             {
                 Commands = new[]
